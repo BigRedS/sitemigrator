@@ -1,0 +1,48 @@
+# This is a YAML file. It has two annoying rules:
+#  - It must have a line of three hyphens at the beginning
+#  - Line indentation _must_ be spaces and not tabs.
+#
+# There are sensible defaults for most settings; run the script with 
+# no config file to find out what they are. Config here is illustrative
+# example, not default, so delete any lines where you don't need to change 
+# the defaults.
+# You may not pass null for any option with a default.
+---
+# The server to get the MySQL and the files from. Name or IP address.
+oldserver : ibex.positive-dedicated.net
+rsync
+ binary: /usr/bin/rsync
+ user: root
+ key : /root/.ssh/id_rsa.pub
+ #rsync options. Include the leading '-'
+ options: -az
+mysql:
+ binary: /usr/bin/mysql
+ mysqldump: 
+ sshuser:
+ sshkey:
+ user: root
+ pass: pass
+ host: 
+ port:
+ # MySQL dumps are put in the dumpdir with names of the form 
+ # 'sitename.sql'. They are silently overwritten.
+ umask: 022
+ dumpdir:
+# Here's where you define some sites. The name of the sites (somesite
+# and othersite here) are used for the name of the db dump, and when 
+# specifying which sites to sync.
+# Keys should be pretty self-explanatory. If you don't set a dbname, no 
+# MySQL sync is performed. If you don't set a homedir, no rsyncing is done. 
+# Warnings are printed to screen in either event.
+sites:
+ somesite
+   homedir: /home/somesite
+   dbuser:  somesite_r
+   dbpass:  adfjasdfjkmemk0eiq3wesd
+   dbname:  somesite
+ othersite:
+  homedir: /var/www/othersite
+  dbsuer:  user
+  dbname:  dbname
+  dbpass:  pass

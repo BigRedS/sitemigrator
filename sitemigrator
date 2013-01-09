@@ -1,0 +1,184 @@
+#! /usr/bin/perl
+
+use strict;
+use 5.010;
+
+use YAML qw/LoadFile/;
+use Data::Dumper;
+use Getopt::Std;
+
+my %opts;
+# -c config file
+# -d print config and exit
+# -f file listing sites to migrate
+# -h Halp!
+# -m do mysql only
+# -r do rsync only
+
+getopts('c:dfhqomr', \%opts);
+if(defined($opts{'h'})){
+	print usage();
+	exit 0;
+}
+
+my $f_conf = $opts{'c'} || './sitemigrator.yaml';
+
+my ($conf, $sites);
+if(-f $f_conf){
+	$conf = LoadFile($f_conf);
+	$sites = $conf->{'sites'};
+	_info("Parsed config file '$f_conf'");
+}else{
+	_warn("Config file '$f_conf' doesn't exist");
+	$opts{'d'} = "1";
+}
+
+
+# Deal with some defaults:
+
+$conf->{'rsync'}->{'binary'}    = $conf->{'rsync'}->{'binary'}    || '/usr/bin/rsync';
+$conf->{'rsync'}->{'user'}      = $conf->{'rsync'}->{'user'}      || 'root';
+$conf->{'rsync'}->{'key'}       = $conf->{'rsync'}->{'key'}       || '/root/.ssh/id_rsa.pub';
+$conf->{'rsync'}->{'options'}   = $conf->{'rsync'}->{'options'}   || '-az';
+
+$conf->{'mysql'}->{'mysqldump'} = $conf->{'mysql'}->{'mysqldump'} || '/usr/bin/mysqldump';
+$conf->{'mysql'}->{'binary'}    = $conf->{'mysql'}->{'binary'}    || '/usr/bin/mysql';
+$conf->{'mysql'}->{'port'}      = $conf->{'mysql'}->{'port'}      || '3306';
+$conf->{'mysql'}->{'dumpdir'}   = $conf->{'mysql'}->{'dumpdir'}   || '/tmp/';
+$conf->{'mysql'}->{'umask'}     = $conf->{'mysql'}->{'umask'}     || '002'; # sets 700 permissions by default
+
+# Anything that can be checked this early on should be:
+_warn("rsync binary '$conf->{'rsync'}->{'binary'}' not executable")        unless -x $conf->{'rsync'}->{'binary'};
+_warn("mysql binary '$conf->{'mysql'}->{'binary'}' not executable")        unless -x $conf->{'mysql'}->{'binary'};
+_warn("mysqldump binary '$conf->{'mysql'}->{'mysqldump'}' not executable") unless -x $conf->{'mysql'}->{'mysqldump'};
+_warn("SSH key '$conf->{'rsync'}->{'key'}' not readable")                  unless -r $conf->{'rsync'}->{'key'};
+_warn("MySQL dumpdir '$conf->{'mysql'}->{'dumpdir'}' not a directory")     unless -d $conf->{'mysql'}->{'dumpdir'};
+_warn("MySQL dumpdir '$conf->{'mysql'}->{'dumpdir'}' not writeable")       unless -w $conf->{'mysql'}->{'dumpdir'};
+_warn("MySQL port '$conf->{'mysql'}->{'port'}' invalid")                   unless ( ($conf->{'mysql'}->{'port'} > 0) && ($conf->{'mysql'}->{'port'} < 65535) );
+
+
+# Print config:
+_info("General config:");
+_info("\n");
+_info("  rsync:");
+_info("    binary:    $conf->{'rsync'}->{'binary'}");
+_info("    user:      $conf->{'rsync'}->{'user'}");
+_info("    key:       $conf->{'rsync'}->{'key'}");
+_info("    options:   $conf->{'rsync'}->{'options'}");
+_info("");
+_info("  mysql:");
+_info("    binary:    $conf->{'mysql'}->{'binary'}");
+_info("    mysqldump: $conf->{'mysql'}->{'mysqldump'}");
+_info("    port:      $conf->{'mysql'}->{'port'}");
+_info("    dump dir:  $conf->{'mysql'}->{'dumpdir'}");
+_info("    umask:     $conf->{'mysql'}->{'umask'}");
+_info("\n");
+exit(0) if exists($opts{'d'});
+
+
+foreach(keys(%$sites)){
+	my $details = $sites->{$_};
+	$details->{'name'} = $_;
+	say syncFiles($details, $conf);
+	say syncDBs($details,$conf);
+
+}
+
+sub syncFiles {
+	my $details = shift;
+	my $rsync = $_[0]->{'rsync'};
+	my $cmd = $rsync->{'binary'}." ".$rsync->{'options'}." ".$rsync->{'user'}."@".$conf->{'oldserver'}.":".$details->{'homedir'}."/* ".$details->{'homedir'};
+	return $cmd;
+}
+
+sub syncDBs {
+	my $details = shift;
+	my $config = shift;
+	my $mysql = $config->{'mysql'};
+	unless(exists($details->{'dbname'})){
+		warn("$config->{'sitename'} has no DB, skipping DB sync");
+		return;
+	}
+
+#	This seems pointless. If you want to use default mysql credentials, set them when creating 
+#	the yaml.
+#	if($mysql->{'user'} =~ /.+/){
+#		$details->{'dbuser'} = $mysql->{'user'};
+#		$details->{'dbpass'} = $mysql->{'pass'};
+#	}
+
+	# Set configured umask, and try to create a file to dump the DB into. 
+	# If that fails, trigger an error and go to the next job.
+	my $f_dump = $mysql->{'dumpdir'}.$details->{'name'}.".sql";
+	eval{
+		umask($mysql->{'umask'}) or die ("Error setting umask to '".$mysql->{'umask'}."' : $!\nSkipping DB dump.");
+	};
+	if($@){
+		_err($@);
+		next;
+	}
+
+	eval{
+		open(my $fh, '>', $f_dump) or die ("Error creating dumpfile at '".$mysql->{'dumpfile'}."': $!\nSkipping DB dump");
+	};
+	if($@){
+		_err($@);
+		next;
+	}
+	my $c_dump = $mysql->{'mysqldump'}." -h".$conf->{'oldserver'}.":".$mysql->{'port'}." -u".$details->{'dbuser'}." -p".$details->{'dbpass'}." ".$details->{'dbname'}." > ".$f_dump;
+	my $c_insert = $mysql->{'binary'}." -u".$details->{'dbuser'}." -p".$details->{'dbpass'}." ".$details->{'dbname'}." < $f_dump";
+
+	return $c_dump."\n".$c_insert;
+
+}
+
+sub _log {
+	my $message = shift;
+	chomp $message;
+	say $message;
+}
+sub _warn {
+	my $message = shift;
+	chomp $message;
+	say STDERR "WARNING: ".$message;
+}
+sub _err {
+	my $message = shift;
+	chomp $message;
+	die($message);
+}
+
+sub _info {
+	return if exists($opts{'q'});
+	my $message = shift;
+	chomp $message;
+	say "$message";
+}
+
+sub usage {
+return <<EOF;
+migraetsites
+  a tool for migrating websites between hosts.
+
+Usage:
+  migratesites <options>
+
+  Options:
+    -c [path] path to config file. Defaults to ./sitemigrator.yaml
+    -d        print out (default) config and exit
+    -h        show this help
+    -l [path] path to a file containing a list of sites to sync
+    -m        only sync MySQL
+    -o [path] path to output commands to (to create a script). NEEDS IMPLEMENTING
+    -q        be quiet. Only print errors.			NEEDS IMPLEMENTING
+    -r        only do rsync 
+
+Passing -m or -r wont silence errors from checks about other 
+processes (currently only that the ssh key for rsync exists).
+
+-d is executed after any config file is read, so if you pass 
+that and a config file you'll get the config from that printed, 
+and some rudimentary sanity checks of it.
+
+EOF
+}
