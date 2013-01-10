@@ -100,12 +100,17 @@ sub syncDBs {
 		return;
 	}
 
-#	This seems pointless. If you want to use default mysql credentials, set them when creating 
-#	the yaml.
-#	if($mysql->{'user'} =~ /.+/){
-#		$details->{'dbuser'} = $mysql->{'user'};
-#		$details->{'dbpass'} = $mysql->{'pass'};
-#	}
+	if($details->{'dbuser'} !~ /.+/){
+		$details->{'dbuser'} = $mysql->{'user'};
+		$details->{'dbpass'} = $mysql->{'pass'};
+	}
+	if($details->{'dbhost'} !~ /.+/){
+		if($mysql->{'host'} =~ /.+/){
+			$details->{'dbhost'} = $mysql->{'host'};
+		}else{
+			$details->{'dbhost'} = $conf->{'oldserver'};
+		}
+	}
 
 	# Set configured umask, and try to create a file to dump the DB into. 
 	# If that fails, trigger an error and go to the next job.
@@ -125,11 +130,10 @@ sub syncDBs {
 		_err($@);
 		next;
 	}
-	my $c_dump = $mysql->{'mysqldump'}." -h".$conf->{'oldserver'}.":".$mysql->{'port'}." -u".$details->{'dbuser'}." -p".$details->{'dbpass'}." ".$details->{'dbname'}." > ".$f_dump;
+	my $c_dump = $mysql->{'mysqldump'}." -h".$details->{'dbhost'}.":".$mysql->{'port'}." -u".$details->{'dbuser'}." -p".$details->{'dbpass'}." ".$details->{'dbname'}." > ".$f_dump;
 	my $c_insert = $mysql->{'binary'}." -u".$details->{'dbuser'}." -p".$details->{'dbpass'}." ".$details->{'dbname'}." < $f_dump";
 
 	return $c_dump."\n".$c_insert;
-
 }
 
 sub _log {
@@ -165,12 +169,15 @@ Usage:
 
   Options:
     -c [path] path to config file. Defaults to ./sitemigrator.yaml
-    -d        print out (default) config and exit
+    -d        just parse any config, apply defaults, and print the 
+              resulting understood settings.
+    -e        execute generated commands, don't just print them. NEEDS IMPLEMENTING
     -h        show this help
     -l [path] path to a file containing a list of sites to sync
     -m        only sync MySQL
     -o [path] path to output commands to (to create a script). NEEDS IMPLEMENTING
-    -q        be quiet. Only print errors.			NEEDS IMPLEMENTING
+    -p [num]  run with this many threads. Defaults to one. NEEDS IMPLEMENTING
+    -q        be quiet. Only print errors.
     -r        only do rsync 
 
 Passing -m or -r wont silence errors from checks about other 
