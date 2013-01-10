@@ -17,14 +17,15 @@ rsync
  #rsync options. Include the leading '-'
  options: -az
 mysql:
+ # This is called to insert the dump into the new db. Add a '-h' flag
+ # here if it's something other than the localhost:
+ # binary: /usr/bin/mysql -h mysql.newserver.com
  binary: /usr/bin/mysql
  mysqldump: 
- sshuser:
- sshkey:
  user: root
  pass: pass
  host: 
- port:
+ port: 3306
  # MySQL dumps are put in the dumpdir with names of the form 
  # 'sitename.sql'. They are silently overwritten.
  umask: 022
@@ -46,3 +47,4 @@ sites:
   dbsuer:  user
   dbname:  dbname
   dbpass:  pass
+  dbhost:  mysql.net
