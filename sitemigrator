@@ -45,7 +45,7 @@ $conf->{'mysql'}->{'mysqldump'} = $conf->{'mysql'}->{'mysqldump'} || '/usr/bin/m
 $conf->{'mysql'}->{'binary'}    = $conf->{'mysql'}->{'binary'}    || '/usr/bin/mysql';
 $conf->{'mysql'}->{'port'}      = $conf->{'mysql'}->{'port'}      || '3306';
 $conf->{'mysql'}->{'dumpdir'}   = $conf->{'mysql'}->{'dumpdir'}   || '/tmp/';
-$conf->{'mysql'}->{'umask'}     = $conf->{'mysql'}->{'umask'}     || '002'; # sets 700 permissions by default
+$conf->{'mysql'}->{'umask'}     = $conf->{'mysql'}->{'umask'}     || '077'; # sets 700 permissions by default
 
 # Anything that can be checked this early on should be:
 _warn("rsync binary '$conf->{'rsync'}->{'binary'}' not executable")        unless -x $conf->{'rsync'}->{'binary'};
