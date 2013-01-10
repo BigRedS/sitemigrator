@@ -1,0 +1,13 @@
+sitemigrator
+============
+
+Sitemigrator is a script for migrating a bunch of sites from one host
+to another. It reads two files, one of which contains a list of sites
+to migrate and the other defining the parameters to operate on, 
+including things like MySQL credentials and file paths for bits of the
+sites that need migrating.
+
+Currently it only dumps-and-inserts MySQL dbs and rsyncs homedirs, since
+that's all I've yet needed it to do. It'll deal with apache config in the 
+future.
+
