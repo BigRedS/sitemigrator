@@ -9,7 +9,7 @@
 # You may not pass null for any option with a default.
 ---
 # The server to get the MySQL and the files from. Name or IP address.
-oldserver : ibex.positive-dedicated.net
+oldserver : oldserver.company.com
 rsync
  binary: /usr/bin/rsync
  user: root
