@@ -262,7 +262,7 @@ Usage:
     -c [path] path to config file. Defaults to ./sitemigrator.yaml
     -d        just parse any config, apply defaults, and print the 
               resulting understood settings.
-    -e        execute generated commands, don't just print them. NEEDS IMPLEMENTING
+    -e        execute generated commands, don't just print them.
     -h        show this help
     -l [path] path to a file containing a list of sites to sync
     -m        only sync MySQL
