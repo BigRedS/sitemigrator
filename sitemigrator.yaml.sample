@@ -38,7 +38,7 @@ mysql:
 # Warnings are printed to screen in either event.
 sites:
  somesite
-   homedir: /home/somesite
+   homedir: /home/
    dbuser:  somesite_r
    dbpass:  adfjasdfjkmemk0eiq3wesd
    dbname:  somesite

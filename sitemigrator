@@ -15,7 +15,7 @@ my %opts;
 # -m do mysql only
 # -r do rsync only
 
-getopts('c:dfhqomr', \%opts);
+getopts('c:dfhqo:mr', \%opts);
 if(defined($opts{'h'})){
 	print usage();
 	exit 0;
@@ -40,6 +40,7 @@ $conf->{'rsync'}->{'binary'}    = $conf->{'rsync'}->{'binary'}    || '/usr/bin/r
 $conf->{'rsync'}->{'user'}      = $conf->{'rsync'}->{'user'}      || 'root';
 $conf->{'rsync'}->{'key'}       = $conf->{'rsync'}->{'key'}       || '/root/.ssh/id_rsa.pub';
 $conf->{'rsync'}->{'options'}   = $conf->{'rsync'}->{'options'}   || '-az';
+$conf->{'rsync'}->{'parentdir'} = $conf->{'rsync'}->{'parentdir'} || '/home/';
 
 $conf->{'mysql'}->{'mysqldump'} = $conf->{'mysql'}->{'mysqldump'} || '/usr/bin/mysqldump';
 $conf->{'mysql'}->{'binary'}    = $conf->{'mysql'}->{'binary'}    || '/usr/bin/mysql';
@@ -48,13 +49,14 @@ $conf->{'mysql'}->{'dumpdir'}   = $conf->{'mysql'}->{'dumpdir'}   || '/tmp/';
 $conf->{'mysql'}->{'umask'}     = $conf->{'mysql'}->{'umask'}     || '077'; # sets 700 permissions by default
 
 # Anything that can be checked this early on should be:
-_warn("rsync binary '$conf->{'rsync'}->{'binary'}' not executable")        unless -x $conf->{'rsync'}->{'binary'};
-_warn("mysql binary '$conf->{'mysql'}->{'binary'}' not executable")        unless -x $conf->{'mysql'}->{'binary'};
-_warn("mysqldump binary '$conf->{'mysql'}->{'mysqldump'}' not executable") unless -x $conf->{'mysql'}->{'mysqldump'};
-_warn("SSH key '$conf->{'rsync'}->{'key'}' not readable")                  unless -r $conf->{'rsync'}->{'key'};
-_warn("MySQL dumpdir '$conf->{'mysql'}->{'dumpdir'}' not a directory")     unless -d $conf->{'mysql'}->{'dumpdir'};
-_warn("MySQL dumpdir '$conf->{'mysql'}->{'dumpdir'}' not writeable")       unless -w $conf->{'mysql'}->{'dumpdir'};
-_warn("MySQL port '$conf->{'mysql'}->{'port'}' invalid")                   unless ( ($conf->{'mysql'}->{'port'} > 0) && ($conf->{'mysql'}->{'port'} < 65535) );
+_warn("rsync binary '$conf->{'rsync'}->{'binary'}' not executable")           unless -x $conf->{'rsync'}->{'binary'};
+_warn("mysql binary '$conf->{'mysql'}->{'binary'}' not executable")           unless -x $conf->{'mysql'}->{'binary'};
+_warn("mysqldump binary '$conf->{'mysql'}->{'mysqldump'}' not executable")    unless -x $conf->{'mysql'}->{'mysqldump'};
+_warn("SSH key '$conf->{'rsync'}->{'key'}' not readable")                     unless -r $conf->{'rsync'}->{'key'};
+_warn("MySQL dumpdir '$conf->{'mysql'}->{'dumpdir'}' not a directory")        unless -d $conf->{'mysql'}->{'dumpdir'};
+_warn("MySQL dumpdir '$conf->{'mysql'}->{'dumpdir'}' not writeable")          unless -w $conf->{'mysql'}->{'dumpdir'};
+_warn("MySQL port '$conf->{'mysql'}->{'port'}' invalid")                      unless ( ($conf->{'mysql'}->{'port'} > 0) && ($conf->{'mysql'}->{'port'} < 65535) );
+_warn("Mandatory parent dir '$conf->{'rsync'}->{'parentdir'}' doesn't exist") unless -d $conf->{'rsync'}->{'parentdir'};
 
 
 # Print config:
@@ -75,20 +77,58 @@ _info("    umask:     $conf->{'mysql'}->{'umask'}");
 _info("\n");
 exit(0) if exists($opts{'d'});
 
+my ($fh_script,$f_script);
+if($f_script = $opts{'o'}){
+	open($fh_script, ">", $f_script) or die "Error opening '$f_script' to write script into";
+	say $fh_script startScript();
+}else{
+	$fh_script = \*STDOUT;
+}
 
 foreach(keys(%$sites)){
 	my $details = $sites->{$_};
 	$details->{'name'} = $_;
-	say syncFiles($details, $conf);
-	say syncDBs($details,$conf);
+	say $fh_script "\n\n#".$_;
+	say $fh_script syncFiles($details, $conf);
+	say $fh_script syncDBs($details,$conf);
+}
+
+# # # # 
+# # #
+# #
+#
+
+sub startScript{
+	return "#! /bin/bash\n\n";
+}
+sub endScript{
+	return "\n";
+}
+
+sub isInMandatoryParentDir{
+	my $dir = shift;
+	my $parentdir = $conf->{'rsync'}->{'parentdir'};
+	$parentdir =~ s#/+$##g;
+	$dir =~ s#/+$##g;
+	if($dir =~ m#$parentdir/(.+)#){
+		return $1;
+	}else{
+		return;
+	}
 
 }
 
 sub syncFiles {
 	my $details = shift;
 	my $rsync = $_[0]->{'rsync'};
-	my $cmd = $rsync->{'binary'}." ".$rsync->{'options'}." ".$rsync->{'user'}."@".$conf->{'oldserver'}.":".$details->{'homedir'}."/* ".$details->{'homedir'};
-	return $cmd;
+	if (isInMandatoryParentDir($details->{'homedir'})){
+		my $cmd = $rsync->{'binary'}." ".$rsync->{'options'}." ".$rsync->{'user'}."@".$conf->{'oldserver'}.":".$details->{'homedir'}."/* ".$details->{'homedir'};
+		return $cmd;
+	}else{
+		my $warning = "Dir '$details->{'homedir'}' is not a subdirectory of mandatory parent directory '$rsync->{'parentdir'}'";
+		_warn($warning);
+		return "#".$warning;
+	}
 }
 
 sub syncDBs {
