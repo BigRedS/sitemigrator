@@ -10,12 +10,14 @@ use Getopt::Std;
 my %opts;
 # -c config file
 # -d print config and exit
+# -e execute commands
 # -f file listing sites to migrate
 # -h Halp!
+# -l Path to a list of sites to sync
 # -m do mysql only
 # -r do rsync only
 
-getopts('c:dfhqo:mr', \%opts);
+getopts('c:defhql:o:mr', \%opts);
 if(defined($opts{'h'})){
 	print usage();
 	exit 0;
@@ -77,6 +79,9 @@ _info("    umask:     $conf->{'mysql'}->{'umask'}");
 _info("\n");
 exit(0) if exists($opts{'d'});
 
+# Check if we're writing a script and, if so, point $fh_script at that
+# file and write a shebang to it. If we're not, then point $fh_script at
+# STDOUT.
 my ($fh_script,$f_script);
 if($f_script = $opts{'o'}){
 	open($fh_script, ">", $f_script) or die "Error opening '$f_script' to write script into";
@@ -85,21 +90,63 @@ if($f_script = $opts{'o'}){
 	$fh_script = \*STDOUT;
 }
 
+# Check if we're executing commands and, if we are, check that our log
+# directory exists.
+if (exists($opts{'e'})){
+	_err("Log directory '$conf->{'logdir'}' doesn't exist") if (!-d $conf->{'logdir'});
+}
+
+# Read a list of sites to process, if supplied:
+#my @sitesToProcess = getSites($opts{'l'}) if ($opts{'l'});
+my %sitesToProcess = map{$_ => $_} getSites($opts{'l'}) if $opts{'l'};
+
 foreach(keys(%$sites)){
 	my $details = $sites->{$_};
 	$details->{'name'} = $_;
-	say $fh_script "\n\n#".$_;
-	say $fh_script syncFiles($details, $conf);
-	say $fh_script syncDBs($details,$conf);
+
+	if(%sitesToProcess){
+		next unless $sitesToProcess{$details->{'name'}};
+	}
+
+	my $fileSync = syncFiles($details, $conf), " > $conf->{'logdir'}/$_.rsync.stdout 2> $conf->{'logdir'}/$_.rsync.stderr";
+	my $dbSync =  syncDBs($details, $conf),   " > $conf->{'logdir'}/$_.mysql.stdout 2> $conf->{'logdir'}/$_.mysql.stderr";
+
+	if($opts{'e'}){
+		system(syncFiles($details,$conf));
+		system(syncDBs($details,$conf));
+	}else{
+		say $fh_script "\n\n#".$_;
+		say $fh_script syncFiles($details, $conf);
+		say $fh_script syncDBs($details,$conf);
+	}
 }
 
 # # # # 
 # # #
 # #
 #
+sub getSites{
+	my $f_list = shift;
+	my @sites;
+	open(my $fh_list, "<", $f_list) or die "Error opening site list '$f_list' : $!";
+	while(readline($fh_list)){
+		next if /^#/;
+		next if /^\s*$/;
+		s/#.*$//g;
+		if(/\s*(\S+)\s*/){
+			push(@sites, $1);
+		}
+	}
+	close($fh_list);
+	return @sites;
+
+}
 
 sub startScript{
-	return "#! /bin/bash\n\n";
+	my $script;
+	$script = "#! /bin/bash\n\n";
+	$script.= "# Written by sitemigrator at ".localtime();
+	$script.= " for ".getpwuid($<);
 }
 sub endScript{
 	return "\n";
@@ -123,11 +170,12 @@ sub syncFiles {
 	my $rsync = $_[0]->{'rsync'};
 	if (isInMandatoryParentDir($details->{'homedir'})){
 		my $cmd = $rsync->{'binary'}." ".$rsync->{'options'}." ".$rsync->{'user'}."@".$conf->{'oldserver'}.":".$details->{'homedir'}."/* ".$details->{'homedir'};
+		$cmd .= " > $conf->{'logdir'}/$_.rsync.stdout 2> $conf->{'logdir'}/$_.rsync.stderr";
 		return $cmd;
 	}else{
 		my $warning = "Dir '$details->{'homedir'}' is not a subdirectory of mandatory parent directory '$rsync->{'parentdir'}'";
-		_warn($warning);
-		return "#".$warning;
+		_warn($warning ." when processing $details->{'name'}");
+		return "# Skipping Rsync: ".$warning;
 	}
 }
 
@@ -173,6 +221,9 @@ sub syncDBs {
 	my $c_dump = $mysql->{'mysqldump'}." -h".$details->{'dbhost'}.":".$mysql->{'port'}." -u".$details->{'dbuser'}." -p".$details->{'dbpass'}." ".$details->{'dbname'}." > ".$f_dump;
 	my $c_insert = $mysql->{'binary'}." -u".$details->{'dbuser'}." -p".$details->{'dbpass'}." ".$details->{'dbname'}." < $f_dump";
 
+	$c_dump  .="2> $conf->{'logdir'}/$_.mysqldump.stderr";
+	$c_insert.="> $conf->{'logdir'}/$_.mysql.stdout 2> $conf->{'logdir'}/$_.mysql.stderr";
+
 	return $c_dump."\n".$c_insert;
 }
 
@@ -215,7 +266,7 @@ Usage:
     -h        show this help
     -l [path] path to a file containing a list of sites to sync
     -m        only sync MySQL
-    -o [path] path to output commands to (to create a script). NEEDS IMPLEMENTING
+    -o [path] path to output commands to (to create a script).
     -p [num]  run with this many threads. Defaults to one. NEEDS IMPLEMENTING
     -q        be quiet. Only print errors.
     -r        only do rsync 
