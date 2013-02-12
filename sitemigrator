@@ -271,19 +271,19 @@ Usage:
 
   Options:
     -c [path] path to config file. Defaults to ./sitemigrator.yaml
-    -d        just parse any config, apply defaults, and print the 
-              resulting understood settings.
+    -d        parse config, apply defaults, and print the resulting 
+              understood settings; don't actually do anything.
     -e        execute generated commands, don't just print them.
     -h        show this help
     -l [path] path to a file containing a list of sites to sync
-    -m        only sync MySQL
+    -m        only do MySQL sync
     -o [path] path to output commands to (to create a script).
     -p [num]  run with this many threads. Defaults to one. NEEDS IMPLEMENTING
     -q        be quiet. Only print errors.
     -r        only do rsync 
 
-Passing -m or -r wont silence errors from checks about other 
-processes (currently only that the ssh key for rsync exists).
+Using -m or -r wont suppress warnings that the other sync would
+fail if executed.
 
 -d is executed after any config file is read, so if you pass 
 that and a config file you'll get the config from that printed, 
