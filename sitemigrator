@@ -17,6 +17,8 @@ my %opts;
 # -m do mysql only
 # -r do rsync only
 
+my $cmdline = join(" ", @ARGV);
+
 getopts('c:defhql:o:mr', \%opts);
 if(defined($opts{'h'})){
 	print usage();
@@ -121,6 +123,11 @@ foreach(keys(%$sites)){
 	}
 }
 
+if($f_script){
+	close($fh_script) or die "Error closing filehandle on script file '$f_script' : $!";
+	say "Wrote script to $f_script";
+}
+
 # # # # 
 # # #
 # #
@@ -144,9 +151,13 @@ sub getSites{
 
 sub startScript{
 	my $script;
+	my $hostname = `hostname -f`;
+	chomp $hostname;
 	$script = "#! /bin/bash\n\n";
 	$script.= "# Written by sitemigrator at ".localtime();
-	$script.= " for ".getpwuid($<);
+	$script.= " for ".getpwuid($<)." on $hostname";
+	$script.= "\n# cmdline: ". $0 ." " . $cmdline;
+	$script.= "\n# pwd: ".`pwd`."\n";
 }
 sub endScript{
 	return "\n";
