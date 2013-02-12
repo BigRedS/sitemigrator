@@ -114,12 +114,12 @@ foreach(keys(%$sites)){
 	my $dbSync =  syncDBs($details, $conf),   " > $conf->{'logdir'}/$_.mysql.stdout 2> $conf->{'logdir'}/$_.mysql.stderr";
 
 	if($opts{'e'}){
-		system(syncFiles($details,$conf));
-		system(syncDBs($details,$conf));
+		system($fileSync);
+		system($dbSync);
 	}else{
 		say $fh_script "\n\n#".$_;
-		say $fh_script syncFiles($details, $conf);
-		say $fh_script syncDBs($details,$conf);
+		say $fh_script $fileSync;
+		say $fh_script $dbSync;
 	}
 }
 
