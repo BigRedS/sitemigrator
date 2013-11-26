@@ -132,6 +132,10 @@ if($f_script){
 # # #
 # #
 #
+
+# When called with -l we'll only process sites listed
+# in a file. This sub is called with that file as its
+# argument and returns the list of sites found therein.
 sub getSites{
 	my $f_list = shift;
 	my @sites;
@@ -149,6 +153,8 @@ sub getSites{
 
 }
 
+# Returns the standard header for the generated script; a
+# shebang and some info about the system it's run on.
 sub startScript{
 	my $script;
 	my $hostname = `hostname -f`;
@@ -158,11 +164,16 @@ sub startScript{
 	$script.= " for ".getpwuid($<)." on $hostname";
 	$script.= "\n# cmdline: ". $0 ." " . $cmdline;
 	$script.= "\n# pwd: ".`pwd`."\n";
+	return $script;
 }
+# Returns the footer for the script - a newline character.
 sub endScript{
 	return "\n";
 }
 
+# If 'parentdir' is set, then any files transferred must be
+# in a subdirectory of that dir in order to be transferred. 
+# This sub checks this is the case.
 sub isInMandatoryParentDir{
 	my $dir = shift;
 	my $parentdir = $conf->{'rsync'}->{'parentdir'};
@@ -176,6 +187,7 @@ sub isInMandatoryParentDir{
 
 }
 
+# Generate an rsync command.
 sub syncFiles {
 	my $details = shift;
 	my $rsync = $_[0]->{'rsync'};
@@ -190,6 +202,10 @@ sub syncFiles {
 	}
 }
 
+# Generate the commands necessary to transfer the DBs. A mysqldump 
+# from 'oldserver' to local disk, then an insertion of that dump
+# locally.
+# Returns two lines, one containing each command. 
 sub syncDBs {
 	my $details = shift;
 	my $config = shift;
