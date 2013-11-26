@@ -103,9 +103,9 @@ if (exists($opts{'e'})){
 #my @sitesToProcess = getSites($opts{'l'}) if ($opts{'l'});
 my %sitesToProcess = map{$_ => $_} getSites($opts{'l'}) if $opts{'l'};
 
-foreach(keys(%$sites)){
-	my $details = $sites->{$_};
-	$details->{'name'} = $_;
+foreach my $site (keys(%$sites)){
+	my $details = $sites->{$site};
+	$details->{'name'} = $site;
 
 	if(%sitesToProcess){
 		next unless $sitesToProcess{$details->{'name'}};
@@ -116,16 +116,16 @@ foreach(keys(%$sites)){
 
 	my ($dbSync,$fileSync);
 	unless($opts{'m'}){
-		$fileSync = syncFiles($details, $conf), " > $conf->{'logdir'}/$_.rsync.stdout 2> $conf->{'logdir'}/$_.rsync.stderr";
+		$fileSync = syncFiles($details, $conf), " > $conf->{'logdir'}/$site.rsync.stdout 2> $conf->{'logdir'}/$site.rsync.stderr";
 	}
 	unless($opts{'r'}){
-		$dbSync =  syncDBs($details, $conf),   " > $conf->{'logdir'}/$_.mysql.stdout 2> $conf->{'logdir'}/$_.mysql.stderr";
+		$dbSync =  syncDBs($details, $conf),   " > $conf->{'logdir'}/$site.mysql.stdout 2> $conf->{'logdir'}/$site.mysql.stderr";
 	}
 	if($opts{'e'}){
 		system($fileSync);
 		system($dbSync);
 	}else{
-		say $fh_script "\n\n#".$_;
+		say $fh_script "\n\n# ".$site;
 		say $fh_script $fileSync;
 		say $fh_script $dbSync;
 	}
