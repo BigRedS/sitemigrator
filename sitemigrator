@@ -114,14 +114,14 @@ foreach my $site (keys(%$sites)){
 		next unless $details->{'name'} eq $opts{'s'};
 	}
 
-	my ($dbSync,$fileSync);
+	my ($dbSync,$fileSync,$pwSync);
 	unless($opts{'R'}){
 		$fileSync = syncFiles($details, $conf), " > $conf->{'logdir'}/$site.rsync.stdout 2> $conf->{'logdir'}/$site.rsync.stderr";
 	}
 	unless($opts{'M'}){
 		$dbSync =  syncDBs($details, $conf),   " > $conf->{'logdir'}/$site.mysql.stdout 2> $conf->{'logdir'}/$site.mysql.stderr";
 	}
-	unless($opts{'P'})
+	unless($opts{'P'}){
 		$pwSync = syncPWs($details, $conf), " > $conf->{'logdir'}/$site.passwd.stdout 2> $conf->{'logdir'}/$site.passwd.stderr";
 	}
 	if($opts{'e'}){
@@ -131,6 +131,7 @@ foreach my $site (keys(%$sites)){
 		say $fh_script "\n\n# ".$site;
 		say $fh_script $fileSync;
 		say $fh_script $dbSync;
+		say $fh_script $pwSync;
 	}
 }
 
@@ -264,6 +265,19 @@ sub syncDBs {
 	$c_insert.="> $conf->{'logdir'}/$_.mysql.stdout 2> $conf->{'logdir'}/$_.mysql.stderr";
 
 	return $c_dump."\n".$c_insert;
+}
+
+sub syncPWs {
+	my $details = shift;
+	my $config = shift;
+	my $passwdFiles = $config->{'passwd'}->{'files'};
+	parsePasswd($passwdFiles);
+}
+
+sub parsePasswd{
+	my $details= shift;
+	my @files = $details;
+
 }
 
 sub _log {

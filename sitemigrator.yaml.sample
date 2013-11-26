@@ -13,7 +13,7 @@ oldserver : oldserver.company.com
 logdir : /tmp/sitemigrator
 passwd:
  files: 
-   - /etc/passwd
+   - /etc/shadow
    - /etc/vftp/passwd
 rsync
  binary: /usr/bin/rsync
