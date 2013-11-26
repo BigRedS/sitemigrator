@@ -16,10 +16,11 @@ my %opts;
 # -l Path to a list of sites to sync
 # -m do mysql only
 # -r do rsync only
+# -s do one site only
 
 my $cmdline = join(" ", @ARGV);
 
-getopts('c:defhql:o:mr', \%opts);
+getopts('c:defhql:o:mrs:', \%opts);
 if(defined($opts{'h'})){
 	print usage();
 	exit 0;
@@ -108,6 +109,9 @@ foreach(keys(%$sites)){
 
 	if(%sitesToProcess){
 		next unless $sitesToProcess{$details->{'name'}};
+	}
+	if($opts{'s'}){
+		next unless $details->{'name'} eq $opts{'s'};
 	}
 
 	my $fileSync = syncFiles($details, $conf), " > $conf->{'logdir'}/$_.rsync.stdout 2> $conf->{'logdir'}/$_.rsync.stderr";
@@ -297,6 +301,7 @@ Usage:
     -p [num]  run with this many threads. Defaults to one. NEEDS IMPLEMENTING
     -q        be quiet. Only print errors.
     -r        only do rsync 
+    -s [site] only process one site
 
 Using -m or -r wont suppress warnings that the other sync would
 fail if executed.
