@@ -20,7 +20,7 @@ my %opts;
 
 my $cmdline = join(" ", @ARGV);
 
-getopts('c:defhql:o:mrs:', \%opts);
+getopts('c:defhql:o:s:MRP', \%opts);
 if(defined($opts{'h'})){
 	print usage();
 	exit 0;
@@ -115,11 +115,14 @@ foreach my $site (keys(%$sites)){
 	}
 
 	my ($dbSync,$fileSync);
-	unless($opts{'m'}){
+	unless($opts{'R'}){
 		$fileSync = syncFiles($details, $conf), " > $conf->{'logdir'}/$site.rsync.stdout 2> $conf->{'logdir'}/$site.rsync.stderr";
 	}
-	unless($opts{'r'}){
+	unless($opts{'M'}){
 		$dbSync =  syncDBs($details, $conf),   " > $conf->{'logdir'}/$site.mysql.stdout 2> $conf->{'logdir'}/$site.mysql.stderr";
+	}
+	unless($opts{'P'})
+		$pwSync = syncPWs($details, $conf), " > $conf->{'logdir'}/$site.passwd.stdout 2> $conf->{'logdir'}/$site.passwd.stderr";
 	}
 	if($opts{'e'}){
 		system($fileSync);
@@ -301,11 +304,12 @@ Usage:
     -e        execute generated commands, don't just print them.
     -h        show this help
     -l [path] path to a file containing a list of sites to sync
-    -m        only do MySQL sync
+    -M        skip MySQL sync
     -o [path] path to output commands to (to create a script).
     -p [num]  run with this many threads. Defaults to one. NEEDS IMPLEMENTING
+    -P        skip password sync
     -q        be quiet. Only print errors.
-    -r        only do rsync 
+    -R        skip rsync
     -s [site] only process one site
 
 Using -m or -r wont suppress warnings that the other sync would

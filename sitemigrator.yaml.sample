@@ -11,6 +11,10 @@
 # The server to get the MySQL and the files from. Name or IP address.
 oldserver : oldserver.company.com
 logdir : /tmp/sitemigrator
+passwd:
+ files: 
+   - /etc/passwd
+   - /etc/vftp/passwd
 rsync
  binary: /usr/bin/rsync
  user: root
