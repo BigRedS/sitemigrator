@@ -17,6 +17,10 @@ rsync
  key : /root/.ssh/id_rsa.pub
  #rsync options. Include the leading '-'
  options: -az
+ # If 'parentdir' is set then only dirs whose paths are 
+ # a subdirectory of this are synced. Naive pattern match; 
+ # no special symlink-checking going on.
+ parentdir: /home
 mysql:
  # This is called to insert the dump into the new db. Add a '-h' flag
  # here if it's something other than the localhost:
