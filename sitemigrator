@@ -211,7 +211,7 @@ sub syncDBs {
 	my $config = shift;
 	my $mysql = $config->{'mysql'};
 	unless(exists($details->{'dbname'})){
-		warn("$config->{'sitename'} has no DB, skipping DB sync");
+		warn("site '$details->{'name'}' has no DB, skipping DB sync");
 		return;
 	}
 
