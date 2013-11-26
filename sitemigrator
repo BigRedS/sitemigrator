@@ -195,8 +195,9 @@ sub isInMandatoryParentDir{
 sub syncFiles {
 	my $details = shift;
 	my $rsync = $_[0]->{'rsync'};
+	$details->{'homedir.new'} = $details->{'homedir'} unless $details->{'homedir.new'};
 	if (isInMandatoryParentDir($details->{'homedir'})){
-		my $cmd = $rsync->{'binary'}." ".$rsync->{'options'}." ".$rsync->{'user'}."@".$conf->{'oldserver'}.":".$details->{'homedir'}."/* ".$details->{'homedir'};
+		my $cmd = $rsync->{'binary'}." ".$rsync->{'options'}." ".$rsync->{'user'}."@".$conf->{'oldserver'}.":".$details->{'homedir'}."/* ".$details->{'homedir.new'};
 		$cmd .= " > $conf->{'logdir'}/$_.rsync.stdout 2> $conf->{'logdir'}/$_.rsync.stderr";
 		return $cmd;
 	}else{
