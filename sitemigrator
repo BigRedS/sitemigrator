@@ -114,9 +114,13 @@ foreach(keys(%$sites)){
 		next unless $details->{'name'} eq $opts{'s'};
 	}
 
-	my $fileSync = syncFiles($details, $conf), " > $conf->{'logdir'}/$_.rsync.stdout 2> $conf->{'logdir'}/$_.rsync.stderr";
-	my $dbSync =  syncDBs($details, $conf),   " > $conf->{'logdir'}/$_.mysql.stdout 2> $conf->{'logdir'}/$_.mysql.stderr";
-
+	my ($dbSync,$fileSync);
+	unless($opts{'m'}){
+		$fileSync = syncFiles($details, $conf), " > $conf->{'logdir'}/$_.rsync.stdout 2> $conf->{'logdir'}/$_.rsync.stderr";
+	}
+	unless($opts{'r'}){
+		$dbSync =  syncDBs($details, $conf),   " > $conf->{'logdir'}/$_.mysql.stdout 2> $conf->{'logdir'}/$_.mysql.stderr";
+	}
 	if($opts{'e'}){
 		system($fileSync);
 		system($dbSync);
